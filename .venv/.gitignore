@@ -1,23 +1,16 @@
-
+# Virtual Environment
 .venv/
 
-
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-
-
+# Environment
 .env
 
+# Database
 audit.db
 
+# Python
+__pycache__/
+*.pyc
 
+# IDE
 .vscode/
-
-
 .idea/
-
-
-.DS_Store
-Thumbs.db
