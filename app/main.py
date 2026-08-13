@@ -15,6 +15,8 @@ from typing import Optional
 
 from fastapi import FastAPI, Header, HTTPException, Path
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from .algorand_client import (
     client,
@@ -39,6 +41,24 @@ app = FastAPI(
         "linkage on-chain via a transaction note field."
     ),
     version="1.0.0",
+)
+
+# Local console (static/index.html) runs in a browser and calls this API
+# directly over fetch, so it needs CORS enabled. Tighten allow_origins
+# before deploying anywhere public.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Serves the ledger console at /console (index.html + assets), without
+# shadowing the API routes mounted at "/".
+app.mount(
+    "/console",
+    StaticFiles(directory="static", html=True),
+    name="console",
 )
 
 

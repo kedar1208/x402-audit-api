@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ledger — x402 audit console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0D1512;
+    --ink-2:#131C18;
+    --ink-3:#1B2620;
+    --ink-line:#28362F;
+    --paper:#F1ECDE;
+    --paper-2:#E8E1CC;
+    --paper-line:#D9D2BC;
+    --text-ink:#E8E4D8;
+    --text-ink-dim:#8FA396;
+    --text-paper:#1B1B16;
+    --text-paper-dim:#6B6656;
+    --verdigris:#4FA383;
+    --verdigris-dim:#33685A;
+    --amber:#C98A3C;
+    --brick:#B4453A;
+    --radius:2px;
+    --serif: 'Fraunces', Georgia, serif;
+    --mono: 'IBM Plex Mono', ui-monospace, monospace;
+    --sans: 'Inter', system-ui, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--ink);
+    color:var(--text-ink);
+    font-family:var(--sans);
+    min-height:100vh;
+  }
+  a{color:inherit;}
+
+  /* ---------- header ---------- */
+  header.top{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:24px; flex-wrap:wrap;
+    padding:22px 32px;
+    border-bottom:1px solid var(--ink-line);
+  }
+  .brand{display:flex; align-items:baseline; gap:12px;}
+  .brand .mark{
+    font-family:var(--serif); font-weight:600; font-size:26px; letter-spacing:0.01em;
+    color:var(--text-ink);
+  }
+  .brand .mark em{
+    font-style:normal; color:var(--verdigris);
+  }
+  .brand .sub{
+    font-size:12.5px; color:var(--text-ink-dim); letter-spacing:0.04em; text-transform:uppercase;
+  }
+  .conn{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  }
+  .conn input{
+    background:var(--ink-3); border:1px solid var(--ink-line); color:var(--text-ink);
+    font-family:var(--mono); font-size:12.5px; padding:8px 10px; border-radius:var(--radius);
+    width:250px; outline:none;
+  }
+  .conn input:focus{border-color:var(--verdigris-dim);}
+  .btn{
+    font-family:var(--sans); font-weight:600; font-size:12.5px; letter-spacing:0.02em;
+    border:1px solid var(--ink-line); background:var(--ink-3); color:var(--text-ink);
+    padding:8px 14px; border-radius:var(--radius); cursor:pointer;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .btn:hover{border-color:var(--verdigris-dim);}
+  .btn:active{transform:translateY(1px);}
+  .btn.primary{background:var(--verdigris-dim); border-color:var(--verdigris-dim); color:#0D1512; background:var(--verdigris); color:#08130F;}
+  .btn.primary:hover{background:#5EB593;}
+  .btn:disabled{opacity:0.45; cursor:default; pointer-events:none;}
+  .status{display:flex; align-items:center; gap:8px; font-family:var(--mono); font-size:12px; color:var(--text-ink-dim);}
+  .dot{width:8px; height:8px; border-radius:50%; background:#5A5A50; flex:none;}
+  .dot.ok{background:var(--verdigris); box-shadow:0 0 0 3px rgba(79,163,131,0.18);}
+  .dot.bad{background:var(--brick); box-shadow:0 0 0 3px rgba(180,69,58,0.18);}
+  .dot.pending{background:var(--amber); box-shadow:0 0 0 3px rgba(201,138,60,0.18);}
+
+  /* ---------- layout ---------- */
+  .stage{
+    display:grid;
+    grid-template-columns:minmax(340px, 420px) 1fr;
+    min-height:calc(100vh - 78px);
+  }
+  @media (max-width: 900px){
+    .stage{grid-template-columns:1fr;}
+  }
+
+  /* ---------- console (left, ink) ---------- */
+  .console{
+    padding:28px 30px 40px;
+    border-right:1px solid var(--ink-line);
+  }
+  .console p.lede{
+    font-size:13px; line-height:1.6; color:var(--text-ink-dim); margin:0 0 26px;
+    max-width:38ch;
+  }
+  .step{
+    border-top:1px solid var(--ink-line);
+    padding:20px 0;
+  }
+  .step:last-of-type{border-bottom:1px solid var(--ink-line);}
+  .step-head{
+    display:flex; align-items:baseline; gap:10px; margin-bottom:6px;
+  }
+  .step-num{
+    font-family:var(--mono); font-size:12px; color:var(--verdigris);
+    border:1px solid var(--verdigris-dim); border-radius:50%;
+    width:20px; height:20px; display:flex; align-items:center; justify-content:center;
+    flex:none;
+  }
+  .step-title{
+    font-family:var(--serif); font-size:17px; font-weight:600; color:var(--text-ink);
+  }
+  .step-desc{
+    font-size:12.5px; line-height:1.55; color:var(--text-ink-dim); margin:0 0 14px 30px; max-width:32ch;
+  }
+  .step-body{margin-left:30px; display:flex; flex-direction:column; gap:8px;}
+  .field-row{display:flex; gap:8px;}
+  .field-row input{
+    flex:1; min-width:0;
+    background:var(--ink-3); border:1px solid var(--ink-line); color:var(--text-ink);
+    font-family:var(--mono); font-size:12.5px; padding:9px 10px; border-radius:var(--radius); outline:none;
+  }
+  .field-row input:focus{border-color:var(--verdigris-dim);}
+  .field-row input::placeholder{color:#5C6A62;}
+  .hint{font-size:11px; color:#5C6A62; font-family:var(--mono);}
+
+  footer.notes{
+    padding:20px 32px 40px;
+    font-size:11.5px; color:var(--text-ink-dim); line-height:1.7;
+    max-width:60ch;
+  }
+  footer.notes code{
+    font-family:var(--mono); background:var(--ink-3); padding:1px 5px; border-radius:2px; color:var(--text-ink);
+  }
+
+  /* ---------- tape (right, paper) ---------- */
+  .tape-wrap{
+    background:var(--paper);
+    color:var(--text-paper);
+    padding:0 0 60px;
+    position:relative;
+    background-image:
+      repeating-linear-gradient(to bottom, transparent 0 27px, var(--paper-line) 27px 28px);
+    background-position: 0 90px;
+  }
+  .tape-perf{
+    height:14px;
+    background-image: radial-gradient(circle at 16px 7px, var(--ink) 5px, transparent 5.5px);
+    background-size:32px 14px;
+    background-color:var(--paper);
+  }
+  .tape-head{
+    padding:24px 34px 18px;
+    border-bottom:1px dashed var(--paper-line);
+  }
+  .tape-head h2{
+    font-family:var(--serif); font-size:15px; font-weight:600; letter-spacing:0.03em;
+    text-transform:uppercase; margin:0 0 4px;
+  }
+  .tape-head p{margin:0; font-size:12px; color:var(--text-paper-dim);}
+  .tape-body{padding:6px 34px 0;}
+
+  .empty{
+    margin:60px auto; max-width:320px; text-align:center; color:var(--text-paper-dim);
+  }
+  .empty .seal-outline{
+    width:64px; height:64px; margin:0 auto 16px; border-radius:50%;
+    border:2px dashed var(--paper-line);
+    display:flex; align-items:center; justify-content:center;
+    font-family:var(--serif); font-size:22px; color:var(--paper-line);
+  }
+  .empty p{font-size:12.5px; line-height:1.6;}
+
+  .entry{
+    padding:18px 0; border-bottom:1px dashed var(--paper-line);
+    animation:slidein .35s ease;
+  }
+  @keyframes slidein{
+    from{opacity:0; transform:translateY(-6px);}
+    to{opacity:1; transform:translateY(0);}
+  }
+  .entry-top{display:flex; align-items:center; gap:10px; margin-bottom:10px;}
+  .entry-tag{
+    font-family:var(--mono); font-size:10.5px; font-weight:600; letter-spacing:0.06em;
+    padding:3px 7px; border-radius:2px; text-transform:uppercase;
+  }
+  .entry-tag.challenge{background:rgba(201,138,60,0.18); color:#8C5C1F;}
+  .entry-tag.audit{background:rgba(79,163,131,0.18); color:#2E6A54;}
+  .entry-tag.verify{background:rgba(79,163,131,0.18); color:#2E6A54;}
+  .entry-tag.error{background:rgba(180,69,58,0.16); color:#8A3128;}
+  .entry-time{font-family:var(--mono); font-size:11px; color:var(--text-paper-dim);}
+  .entry-grid{
+    display:grid; grid-template-columns:auto 1fr; gap:5px 14px; font-family:var(--mono); font-size:12.5px;
+    margin-bottom:10px;
+  }
+  .entry-grid dt{color:var(--text-paper-dim);}
+  .entry-grid dd{margin:0; overflow-wrap:anywhere;}
+  .seal{
+    display:inline-flex; align-items:center; gap:6px;
+    font-family:var(--mono); font-size:11px; font-weight:600; letter-spacing:0.03em;
+    padding:4px 9px; border-radius:20px; text-transform:uppercase;
+    animation:stampin .28s cubic-bezier(.2,1.4,.5,1);
+  }
+  @keyframes stampin{
+    from{opacity:0; transform:scale(1.6) rotate(-8deg);}
+    to{opacity:1; transform:scale(1) rotate(-4deg);}
+  }
+  .seal.good{background:rgba(79,163,131,0.15); color:#2E6A54; border:1px solid #2E6A54;}
+  .seal.bad{background:rgba(180,69,58,0.13); color:#8A3128; border:1px solid #8A3128;}
+  .entry-links{display:flex; gap:14px; margin-top:2px;}
+  .entry-links a{
+    font-size:11.5px; font-family:var(--mono); color:#2E6A54; text-decoration:none; border-bottom:1px solid #2E6A5455;
+  }
+  .entry-links a:hover{border-bottom-color:#2E6A54;}
+  .copybtn{
+    font-family:var(--mono); font-size:10.5px; color:var(--text-paper-dim);
+    background:none; border:1px solid var(--paper-line); border-radius:2px; padding:1px 6px; cursor:pointer;
+    margin-left:6px;
+  }
+  .copybtn:hover{color:var(--text-paper); border-color:var(--text-paper-dim);}
+  details.raw{margin-top:8px;}
+  details.raw summary{
+    font-size:11px; color:var(--text-paper-dim); cursor:pointer; font-family:var(--mono);
+  }
+  details.raw pre{
+    margin:8px 0 0; background:var(--paper-2); padding:10px 12px; border-radius:2px;
+    font-family:var(--mono); font-size:11.5px; line-height:1.5; overflow-x:auto;
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <div class="mark">LEDG<em>e</em>R</div>
+    <div class="sub">x402 audit console</div>
+  </div>
+  <div class="conn">
+    <input id="apiBase" type="text" spellcheck="false" value="http://127.0.0.1:8000" />
+    <button class="btn" id="pingBtn">Ping</button>
+    <div class="status"><span class="dot" id="statusDot"></span><span id="statusText">not connected</span></div>
+  </div>
+</header>
+
+<div class="stage">
+
+  <div class="console">
+    <p class="lede">Every call here maps to one real request against your API. Nothing is simulated once it leaves this panel — the ledger on the right is what actually came back.</p>
+
+    <div class="step">
+      <div class="step-head"><span class="step-num">1</span><span class="step-title">Request</span></div>
+      <p class="step-desc">Ask for a resource. With no payment attached, the API answers <strong>402</strong> and hands you a challenge: who to pay, how much, and a nonce.</p>
+      <div class="step-body">
+        <div class="field-row">
+          <input id="resourceId" type="text" value="agent-task-42" placeholder="resource id" />
+          <button class="btn primary" id="requestBtn">Request</button>
+        </div>
+        <span class="hint">GET /resource/&lt;id&gt;</span>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-head"><span class="step-num">2</span><span class="step-title">Redeem</span></div>
+      <p class="step-desc">Pay the challenge on Algorand TestNet, then hand back the payment's transaction id. The API verifies it, hashes the response, and stamps that hash into a new on-chain note.</p>
+      <div class="step-body">
+        <div class="field-row">
+          <input id="paymentTxn" type="text" placeholder="payment txn id" />
+          <button class="btn primary" id="redeemBtn">Redeem</button>
+        </div>
+        <span class="hint">GET /resource/&lt;id&gt; · X-PAYMENT header</span>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-head"><span class="step-num">3</span><span class="step-title">Verify</span></div>
+      <p class="step-desc">Re-fetch the audit note straight from the chain and re-derive it independently — proving the local cache hasn't drifted from what's actually recorded.</p>
+      <div class="step-body">
+        <div class="field-row">
+          <input id="verifyTxn" type="text" placeholder="payment txn id" />
+          <button class="btn primary" id="verifyBtn">Verify</button>
+        </div>
+        <span class="hint">GET /verify/&lt;payment_txn_id&gt;</span>
+      </div>
+    </div>
+
+    <footer class="notes">
+      Needs a live instance of this API reachable from your browser
+      (<code>uvicorn app.main:app --reload</code>). CORS is already open in
+      <code>app/main.py</code> for local use. This console makes no network
+      calls anywhere except the API base URL above.
+    </footer>
+  </div>
+
+  <div class="tape-wrap">
+    <div class="tape-perf"></div>
+    <div class="tape-head">
+      <h2>Receipt tape</h2>
+      <p>Newest entry on top. Nothing here is stored anywhere but this browser tab.</p>
+    </div>
+    <div class="tape-body" id="tapeBody">
+      <div class="empty" id="emptyState">
+        <div class="seal-outline">§</div>
+        <p>No entries yet. Run <strong>Request</strong> on the left to open the ledger.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  const $ = (id) => document.getElementById(id);
+  const apiBaseInput = $('apiBase');
+  const statusDot = $('statusDot');
+  const statusText = $('statusText');
+  const tapeBody = $('tapeBody');
+  const emptyState = $('emptyState');
+
+  const saved = localStorage.getItem('ledger.apiBase');
+  if (saved) apiBaseInput.value = saved;
+  apiBaseInput.addEventListener('change', () => {
+    localStorage.setItem('ledger.apiBase', apiBaseInput.value.trim());
+  });
+
+  function base(){
+    return apiBaseInput.value.trim().replace(/\/+$/, '');
+  }
+
+  function setStatus(state, text){
+    statusDot.className = 'dot' + (state ? ' ' + state : '');
+    statusText.textContent = text;
+  }
+
+  function fmtTime(){
+    return new Date().toLocaleTimeString([], {hour12:false});
+  }
+
+  function microToAlgo(n){
+    if (typeof n !== 'number') return n;
+    return (n / 1e6).toFixed(6).replace(/0+$/,'').replace(/\.$/,'') + ' ALGO';
+  }
+
+  function truncate(str, n){
+    if (typeof str !== 'string' || str.length <= n) return str;
+    return str.slice(0, n) + '…';
+  }
+
+  function copyBtn(value){
+    const b = document.createElement('button');
+    b.className = 'copybtn';
+    b.textContent = 'copy';
+    b.type = 'button';
+    b.addEventListener('click', () => {
+      navigator.clipboard.writeText(value).then(() => {
+        b.textContent = 'copied';
+        setTimeout(() => b.textContent = 'copy', 1100);
+      });
+    });
+    return b;
+  }
+
+  function dd(text, copyValue){
+    const el = document.createElement('dd');
+    el.textContent = text;
+    if (copyValue) el.appendChild(copyBtn(copyValue));
+    return el;
+  }
+
+  function addEntry({ tag, title, rows, seal, links, raw }){
+    emptyState.style.display = 'none';
+
+    const entry = document.createElement('div');
+    entry.className = 'entry';
+
+    const top = document.createElement('div');
+    top.className = 'entry-top';
+    const tagEl = document.createElement('span');
+    tagEl.className = 'entry-tag ' + tag;
+    tagEl.textContent = title;
+    const timeEl = document.createElement('span');
+    timeEl.className = 'entry-time';
+    timeEl.textContent = fmtTime();
+    top.appendChild(tagEl);
+    top.appendChild(timeEl);
+    entry.appendChild(top);
+
+    if (rows && rows.length){
+      const grid = document.createElement('dl');
+      grid.className = 'entry-grid';
+      rows.forEach(([label, value, copyValue]) => {
+        const dt = document.createElement('dt');
+        dt.textContent = label;
+        grid.appendChild(dt);
+        grid.appendChild(dd(value, copyValue));
+      });
+      entry.appendChild(grid);
+    }
+
+    if (seal){
+      const s = document.createElement('span');
+      s.className = 'seal ' + (seal.ok ? 'good' : 'bad');
+      s.textContent = (seal.ok ? '✓ ' : '✕ ') + seal.label;
+      entry.appendChild(s);
+    }
+
+    if (links && links.length){
+      const l = document.createElement('div');
+      l.className = 'entry-links';
+      links.forEach(([label, href]) => {
+        const a = document.createElement('a');
+        a.href = href; a.target = '_blank'; a.rel = 'noopener';
+        a.textContent = label + ' ↗';
+        l.appendChild(a);
+      });
+      entry.appendChild(l);
+    }
+
+    if (raw !== undefined){
+      const det = document.createElement('details');
+      det.className = 'raw';
+      const sum = document.createElement('summary');
+      sum.textContent = 'raw response';
+      const pre = document.createElement('pre');
+      pre.textContent = JSON.stringify(raw, null, 2);
+      det.appendChild(sum); det.appendChild(pre);
+      entry.appendChild(det);
+    }
+
+    tapeBody.prepend(entry);
+  }
+
+  async function call(path, opts){
+    const url = base() + path;
+    const res = await fetch(url, opts || {});
+    let body = null;
+    try { body = await res.json(); } catch(e) { /* no body */ }
+    return { status: res.status, ok: res.ok, body };
+  }
+
+  $('pingBtn').addEventListener('click', async () => {
+    setStatus('pending', 'checking…');
+    try {
+      const { ok, body, status } = await call('/health');
+      if (ok && body){
+        setStatus('ok', body.service_address ? 'connected · ' + truncate(body.service_address, 14) : 'connected');
+      } else {
+        setStatus('bad', 'HTTP ' + status);
+      }
+    } catch(e){
+      setStatus('bad', 'unreachable');
+    }
+  });
+
+  $('requestBtn').addEventListener('click', async () => {
+    const id = $('resourceId').value.trim() || 'agent-task-42';
+    const btn = $('requestBtn'); btn.disabled = true;
+    try {
+      const { status, body } = await call('/resource/' + encodeURIComponent(id));
+      if (status === 402 && body){
+        addEntry({
+          tag: 'challenge', title: '402 · challenge',
+          rows: [
+            ['pay_to', truncate(body.pay_to, 20), body.pay_to],
+            ['amount', microToAlgo(body.amount_microalgos)],
+            ['nonce', truncate(body.nonce, 20), body.nonce],
+            ['expires', (body.expires_in_seconds || 0) + 's'],
+          ],
+          raw: body,
+        });
+      } else {
+        addEntry({ tag: 'error', title: 'HTTP ' + status, rows: [['detail', (body && body.detail) || 'unexpected response']], raw: body });
+      }
+    } catch(e){
+      addEntry({ tag: 'error', title: 'network error', rows: [['detail', String(e)]] });
+    } finally { btn.disabled = false; }
+  });
+
+  $('redeemBtn').addEventListener('click', async () => {
+    const id = $('resourceId').value.trim() || 'agent-task-42';
+    const txn = $('paymentTxn').value.trim();
+    if (!txn){ $('paymentTxn').focus(); return; }
+    const btn = $('redeemBtn'); btn.disabled = true;
+    try {
+      const { status, body } = await call('/resource/' + encodeURIComponent(id), {
+        headers: { 'X-PAYMENT': txn }
+      });
+      if (status === 200 && body){
+        $('verifyTxn').value = body.payment_txn_id || txn;
+        addEntry({
+          tag: 'audit', title: '200 · audited',
+          rows: [
+            ['payload_hash', truncate(body.payload_hash, 24), body.payload_hash],
+            ['payment_txn', truncate(body.payment_txn_id, 24), body.payment_txn_id],
+            ['audit_txn', truncate(body.audit_txn_id, 24), body.audit_txn_id],
+          ],
+          links: body.audit_explorer_url ? [['view audit note', body.audit_explorer_url]] : [],
+          raw: body,
+        });
+      } else {
+        addEntry({ tag: 'error', title: 'HTTP ' + status, rows: [['detail', (body && body.detail) || 'redemption failed']], raw: body });
+      }
+    } catch(e){
+      addEntry({ tag: 'error', title: 'network error', rows: [['detail', String(e)]] });
+    } finally { btn.disabled = false; }
+  });
+
+  $('verifyBtn').addEventListener('click', async () => {
+    const txn = $('verifyTxn').value.trim();
+    if (!txn){ $('verifyTxn').focus(); return; }
+    const btn = $('verifyBtn'); btn.disabled = true;
+    try {
+      const { status, body } = await call('/verify/' + encodeURIComponent(txn));
+      if (status === 200 && body){
+        if (!body.found){
+          addEntry({ tag: 'error', title: 'not found', rows: [['payment_txn', truncate(txn, 24)]] });
+        } else {
+          const links = [];
+          if (body.payment_explorer_url) links.push(['view payment', body.payment_explorer_url]);
+          if (body.audit_explorer_url) links.push(['view audit note', body.audit_explorer_url]);
+          addEntry({
+            tag: 'verify', title: 'verify',
+            rows: [
+              ['resource', body.record ? body.record.resource : '—'],
+              ['payer', body.record ? truncate(body.record.payer_address, 22) : '—'],
+              ['amount', body.record ? microToAlgo(body.record.amount_microalgos) : '—'],
+            ],
+            seal: { ok: !!body.note_verified_on_chain, label: body.note_verified_on_chain ? 'matches on-chain' : 'mismatch' },
+            links,
+            raw: body,
+          });
+        }
+      } else {
+        addEntry({ tag: 'error', title: 'HTTP ' + status, rows: [['detail', (body && body.detail) || 'verify failed']], raw: body });
+      }
+    } catch(e){
+      addEntry({ tag: 'error', title: 'network error', rows: [['detail', String(e)]] });
+    } finally { btn.disabled = false; }
+  });
+
+  // quiet auto-ping on load
+  $('pingBtn').click();
+})();
+</script>
+
+</body>
+</html>
